@@ -1,0 +1,430 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Condition": {
+                "actions": {
+                    "Choose_Random_Name": {
+                        "inputs": {
+                            "name": "namesvar",
+                            "value": "@rand(0,length(body('Get_Names_from_Table')?['value']))"
+                        },
+                        "runAfter": {
+                            "Set_Names_Array": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    },
+                    "Choose_Random_Prefix": {
+                        "inputs": {
+                            "name": "prefixvar",
+                            "value": "@rand(0,length(body('Get_Prefix_from_Table')?['value']))"
+                        },
+                        "runAfter": {
+                            "Set_Prefix_Array": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    },
+                    "Choose_Random_Suffix": {
+                        "inputs": {
+                            "name": "suffixvar",
+                            "value": "@rand(0,length(body('Get_Suffix_from_Table')?['value']))"
+                        },
+                        "runAfter": {
+                            "Set_Suffix_Array": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    },
+                    "Get_Names_from_Table": {
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/Tables/@{encodeURIComponent('names')}/entities"
+                        },
+                        "runAfter": {
+                            "Reset_Day_to_0": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection"
+                    },
+                    "Get_Prefix_from_Table": {
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/Tables/@{encodeURIComponent('prefix')}/entities"
+                        },
+                        "runAfter": {
+                            "Reset_Day_to_0": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection"
+                    },
+                    "Get_Suffix_from_Table": {
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/Tables/@{encodeURIComponent('suffix')}/entities"
+                        },
+                        "runAfter": {
+                            "Reset_Day_to_0": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection"
+                    },
+                    "Post_Incident_Tweet": {
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['twitter']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/posttweet",
+                            "queries": {
+                                "tweetText": "It has been 0 days since the last incident. @{variables('PrefixArray')[variables('prefixvar')]['RowKey']} @{variables('NamesArray')[variables('namesvar')]['RowKey']}, @{variables('SuffixArray')[variables('suffixvar')]['RowKey']}"
+                            }
+                        },
+                        "runAfter": {
+                            "Choose_Random_Name": [
+                                "Succeeded"
+                            ],
+                            "Choose_Random_Prefix": [
+                                "Succeeded"
+                            ],
+                            "Choose_Random_Suffix": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection"
+                    },
+                    "Reset_Day_to_0": {
+                        "inputs": {
+                            "body": "0",
+                            "headers": {
+                                "ReadFileMetadataFromServer": true
+                            },
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('jpbotstorage'))}/files",
+                            "queries": {
+                                "folderPath": "/items",
+                                "name": "day.txt",
+                                "queryParametersSingleEncoded": true
+                            }
+                        },
+                        "runAfter": {},
+                        "runtimeConfiguration": {
+                            "contentTransfer": {
+                                "transferMode": "Chunked"
+                            }
+                        },
+                        "type": "ApiConnection"
+                    },
+                    "Set_Names_Array": {
+                        "inputs": {
+                            "name": "NamesArray",
+                            "value": "@body('Get_Names_from_Table')?['value']"
+                        },
+                        "runAfter": {
+                            "Get_Names_from_Table": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    },
+                    "Set_Prefix_Array": {
+                        "inputs": {
+                            "name": "PrefixArray",
+                            "value": "@body('Get_Prefix_from_Table')?['value']"
+                        },
+                        "runAfter": {
+                            "Get_Prefix_from_Table": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    },
+                    "Set_Suffix_Array": {
+                        "inputs": {
+                            "name": "SuffixArray",
+                            "value": "@body('Get_Suffix_from_Table')?['value']"
+                        },
+                        "runAfter": {
+                            "Get_Suffix_from_Table": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "Get_Current_Day": {
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('jpbotstorage'))}/files/@{encodeURIComponent(encodeURIComponent('JTJmaXRlbXMlMmZkYXkudHh0'))}/content",
+                                "queries": {
+                                    "inferContentType": true
+                                }
+                            },
+                            "metadata": {
+                                "JTJmaXRlbXMlMmZkYXkudHh0": "/items/day.txt"
+                            },
+                            "runAfter": {},
+                            "type": "ApiConnection"
+                        },
+                        "Increment_Day_Counter": {
+                            "inputs": {
+                                "body": "@add(1,int(body('Get_Current_Day')))",
+                                "headers": {
+                                    "ReadFileMetadataFromServer": true
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureblob']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('jpbotstorage'))}/files",
+                                "queries": {
+                                    "folderPath": "/items",
+                                    "name": "day.txt",
+                                    "queryParametersSingleEncoded": true
+                                }
+                            },
+                            "runAfter": {
+                                "Post_Normal_Tweet": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            },
+                            "type": "ApiConnection"
+                        },
+                        "Post_Normal_Tweet": {
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['twitter']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/posttweet",
+                                "queries": {
+                                    "tweetText": "It has been @{body('Get_Current_Day')} days since the last incident. Have a Dino-riffic day!"
+                                }
+                            },
+                            "runAfter": {
+                                "Get_Current_Day": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection"
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@variables('RandomNumber')",
+                                10
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Generate_Random_Number": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "If"
+            },
+            "Generate_Random_Number": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "RandomNumber",
+                            "type": "integer",
+                            "value": "@rand(0,10)"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Names_Count": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_Names_Array": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "NamesArray",
+                            "type": "array"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "Initialize_Prefix_Array": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "PrefixArray",
+                            "type": "array"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_Names_Array": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_Suffix_Array": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "SuffixArray",
+                            "type": "array"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_Prefix_Array": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Names_Count": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "namesvar",
+                            "type": "integer"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Suffix_Count": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Prefix_Count": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "prefixvar",
+                            "type": "integer"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_Suffix_Array": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Suffix_Count": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "suffixvar",
+                            "type": "integer"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Prefix_Count": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "Run_Logic_App_Daily": {
+                "recurrence": {
+                    "frequency": "Day",
+                    "interval": 1,
+                    "schedule": {
+                        "hours": [
+                            "18"
+                        ]
+                    },
+                    "timeZone": "GMT Standard Time"
+                },
+                "type": "Recurrence"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azureblob": {
+                    "connectionId": "/subscriptions/6281959b-7379-495b-b38a-e110d9541cc3/resourceGroups/JurassicParkBot/providers/Microsoft.Web/connections/azureblob-1",
+                    "connectionName": "azureblob-1",
+                    "id": "/subscriptions/6281959b-7379-495b-b38a-e110d9541cc3/providers/Microsoft.Web/locations/uksouth/managedApis/azureblob"
+                },
+                "azuretables": {
+                    "connectionId": "/subscriptions/6281959b-7379-495b-b38a-e110d9541cc3/resourceGroups/JurassicParkBot/providers/Microsoft.Web/connections/azuretables",
+                    "connectionName": "azuretables",
+                    "id": "/subscriptions/6281959b-7379-495b-b38a-e110d9541cc3/providers/Microsoft.Web/locations/uksouth/managedApis/azuretables"
+                },
+                "twitter": {
+                    "connectionId": "/subscriptions/6281959b-7379-495b-b38a-e110d9541cc3/resourceGroups/JurassicParkBot/providers/Microsoft.Web/connections/twitter",
+                    "connectionName": "twitter",
+                    "id": "/subscriptions/6281959b-7379-495b-b38a-e110d9541cc3/providers/Microsoft.Web/locations/uksouth/managedApis/twitter"
+                }
+            }
+        }
+    }
+}
